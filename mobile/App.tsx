@@ -1,45 +1,71 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+// NeuralEdge AI - Main Application Entry Point
+// AION Protocol Compliant Mobile Application
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import React, { useEffect, useState } from 'react';
+import { StatusBar, Alert } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+import AppNavigator from './src/presentation/navigation/AppNavigator';
+import { PerformanceMonitor, performanceUtils } from './src/shared/utils/performance';
+import { PERFORMANCE } from './src/shared/constants';
+
+const App: React.FC = () => {
+  const [isAppReady, setIsAppReady] = useState(false);
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      const monitor = PerformanceMonitor.getInstance();
+      const operationId = 'app_initialization';
+      
+      try {
+        monitor.startMeasure(operationId, PERFORMANCE.MAX_COLD_START);
+        
+        // Preload critical resources for cold start optimization
+        await performanceUtils.preloadCriticalResources();
+        
+        // Initialize security systems
+        // await SecurityManager.initialize();
+        
+        // Initialize AI engine
+        // await AIEngine.initialize();
+        
+        // Initialize vector memory system
+        // await VectorMemorySystem.initialize();
+        
+        const metrics = monitor.endMeasure(operationId);
+        monitor.validatePerformance(metrics);
+        
+        console.log(`[APP] Initialized in ${metrics.duration}ms`);
+        setIsAppReady(true);
+        
+      } catch (error) {
+        console.error('[APP] Initialization failed:', error);
+        Alert.alert(
+          'Initialization Error',
+          'Failed to initialize the application. Please restart the app.',
+          [{ text: 'OK' }]
+        );
+      }
+    };
+
+    initializeApp();
+  }, []);
+
+  if (!isAppReady) {
+    // Show minimal loading screen to meet cold start requirements
+    return null;
+  }
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <StatusBar 
+        barStyle="dark-content" 
+        backgroundColor="#ffffff" 
+        translucent={false}
+      />
+      <AppNavigator />
     </SafeAreaProvider>
   );
-}
-
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
+};
 
 export default App;
