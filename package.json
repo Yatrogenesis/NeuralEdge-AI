@@ -1,0 +1,106 @@
+{
+  "name": "neuraledge-ai",
+  "version": "1.0.0",
+  "description": "Next-Generation Local AI Platform with Cloud Sync",
+  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "mobile",
+    "desktop", 
+    "backend",
+    "ai-engine",
+    "vector-store",
+    "cloud-sync",
+    "mcp-integration"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:mobile\" \"npm run dev:desktop\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:mobile": "cd mobile && npm run start",
+    "dev:desktop": "cd desktop && npm run electron:dev",
+    "build": "npm run build:all",
+    "build:all": "npm run build:backend && npm run build:mobile && npm run build:desktop",
+    "build:backend": "cd backend && npm run build",
+    "build:mobile": "cd mobile && npm run build:android && npm run build:ios",
+    "build:desktop": "cd desktop && npm run build",
+    "test": "npm run test:all",
+    "test:all": "npm run test:backend && npm run test:mobile && npm run test:desktop",
+    "test:backend": "cd backend && npm run test",
+    "test:mobile": "cd mobile && npm run test",
+    "test:desktop": "cd desktop && npm run test",
+    "test:performance": "node scripts/performance-tests.js",
+    "lint": "npm run lint:all",
+    "lint:all": "npm run lint:backend && npm run lint:mobile && npm run lint:desktop",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:mobile": "cd mobile && npm run lint", 
+    "lint:desktop": "cd desktop && npm run lint",
+    "security:scan": "npm audit && node scripts/security-scan.js",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "setup:dev": "./scripts/setup-development.sh",
+    "setup:prod": "./scripts/setup-production.sh",
+    "deploy:staging": "node scripts/deploy-staging.js",
+    "deploy:production": "node scripts/deploy-production.js",
+    "docs:generate": "node scripts/generate-docs.js",
+    "clean": "npm run clean:all",
+    "clean:all": "npm run clean:backend && npm run clean:mobile && npm run clean:desktop",
+    "clean:backend": "cd backend && npm run clean",
+    "clean:mobile": "cd mobile && npm run clean",
+    "clean:desktop": "cd desktop && npm run clean"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yatrogenesis/NeuralEdge-AI.git"
+  },
+  "keywords": [
+    "ai",
+    "mobile",
+    "desktop", 
+    "local-ai",
+    "vector-database",
+    "cloud-sync",
+    "react-native",
+    "electron",
+    "enterprise",
+    "privacy"
+  ],
+  "author": "Francisco Molina <pako.molina@gmail.com>",
+  "license": "Enterprise",
+  "bugs": {
+    "url": "https://github.com/Yatrogenesis/NeuralEdge-AI/issues"
+  },
+  "homepage": "https://github.com/Yatrogenesis/NeuralEdge-AI#readme",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.11.16",
+    "jest": "^29.7.0",
+    "@playwright/test": "^1.41.2",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.5",
+    "nodemon": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test:all && npm run security:scan"
+    }
+  },
+  "lint-staged": {
+    "*.{js,ts,tsx,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}
