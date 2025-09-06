@@ -4,6 +4,9 @@
 import { PerformanceMonitor, withPerformanceMonitoring } from '../../shared/utils/performance';
 import { VectorMemoryEntry, Interaction, AIONResult, AIONError } from '../../shared/types';
 import { PERFORMANCE, AI, ERROR_CODES } from '../../shared/constants';
+import VectorIndexOptimizer from './VectorIndexOptimizer';
+import ContextAnalyzer from '../ai/ContextAnalyzer';
+import CloudSyncManager from './CloudSyncManager';
 
 export interface VectorSearchOptions {
   similarityThreshold: number;
@@ -33,10 +36,16 @@ export class VectorMemorySystem {
   private sessionIndex: Map<string, string[]> = new Map(); // sessionId -> entryIds
   private userIndex: Map<string, string[]> = new Map(); // userId -> entryIds
   private performanceMonitor: PerformanceMonitor;
+  private vectorOptimizer: VectorIndexOptimizer;
+  private contextAnalyzer: ContextAnalyzer;
+  private cloudSyncManager: CloudSyncManager;
   private isInitialized = false;
 
   private constructor() {
     this.performanceMonitor = PerformanceMonitor.getInstance();
+    this.vectorOptimizer = VectorIndexOptimizer.getInstance();
+    this.contextAnalyzer = ContextAnalyzer.getInstance();
+    this.cloudSyncManager = CloudSyncManager.getInstance();
   }
 
   public static getInstance(): VectorMemorySystem {
@@ -59,6 +68,11 @@ export class VectorMemorySystem {
 
       // Load existing vector memories from persistent storage
       await this.loadFromStorage();
+      
+      // Initialize enhanced components
+      await this.vectorOptimizer.initialize();
+      await this.contextAnalyzer.initialize();
+      await this.cloudSyncManager.initialize();
       
       // Initialize vector indexing for fast similarity search
       await this.initializeVectorIndex();
@@ -105,10 +119,21 @@ export class VectorMemorySystem {
         interaction.metadata.processingTime
       );
 
-      // Extract metadata
-      const entities = this.extractEntities(interaction.userInput);
-      const topics = this.extractTopics(interaction.userInput);
-      const sentiment = this.analyzeSentiment(interaction.userInput);
+      // Enhanced context analysis using ContextAnalyzer
+      const contextResult = await this.contextAnalyzer.analyzeContext(
+        {
+          text: interaction.userInput,
+          timestamp: interaction.timestamp,
+          metadata: interaction.metadata,
+        },
+        interaction.conversationId,
+        'standard'
+      );
+
+      // Extract enhanced metadata
+      const entities = contextResult.data?.entities || this.extractEntities(interaction.userInput);
+      const topics = contextResult.data?.topics || this.extractTopics(interaction.userInput);
+      const sentiment = contextResult.data?.sentiment || this.analyzeSentiment(interaction.userInput);
 
       // Create vector memory entry
       const vectorEntry: VectorMemoryEntry = {
@@ -136,7 +161,10 @@ export class VectorMemorySystem {
       // Update indices
       await this.updateIndices(vectorEntry);
       
-      // Persist to storage
+      // Sync to cloud storage
+      await this.cloudSyncManager.uploadVectorMemory(vectorEntry, ['cloudflare', 'icloud']);
+      
+      // Persist to local storage
       await this.persistToStorage(vectorEntry);
 
       console.log(`[VECTOR_MEMORY] Stored interaction: ${vectorEntry.id}`);
@@ -180,7 +208,52 @@ export class VectorMemorySystem {
       const results: VectorSimilarityResult[] = [];
       const currentTime = Date.now();
 
-      // Search through all stored vectors
+      // Use optimized search if available
+      try {
+        const optimizedResult = await this.vectorOptimizer.searchOptimized(
+          queryVector, 
+          searchOptions.maxResults
+        );
+        
+        if (optimizedResult.data && optimizedResult.data.results.length > 0) {
+          console.log(`[VECTOR_MEMORY] Using optimized search - found ${optimizedResult.data.results.length} results`);
+          
+          // Convert optimized results to similarity results
+          for (const entry of optimizedResult.data.results) {
+            const similarity = this.cosineSimilarity(queryVector, entry.inputVector);
+            if (similarity >= searchOptions.similarityThreshold) {
+              const timeDiff = currentTime - entry.timestamp.getTime();
+              const hoursDiff = timeDiff / (1000 * 60 * 60);
+              const temporalScore = Math.exp(-hoursDiff / 24);
+              const combinedScore = (
+                similarity * (1 - searchOptions.temporalWeight) +
+                temporalScore * searchOptions.temporalWeight
+              );
+              
+              results.push({
+                entry,
+                similarity,
+                temporalScore,
+                combinedScore,
+              });
+            }
+          }
+          
+          // Sort and return optimized results
+          results.sort((a, b) => b.combinedScore - a.combinedScore);
+          console.log(`[VECTOR_MEMORY] Optimized search completed with ${results.length} relevant results`);
+          
+          return {
+            data: results.slice(0, searchOptions.maxResults),
+            performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME },
+            security: { encrypted: true, authenticated: true, authorized: true, auditTrail: `VECTOR_OPTIMIZED_SEARCH_${Date.now()}` },
+          };
+        }
+      } catch (error) {
+        console.warn('[VECTOR_MEMORY] Optimized search failed, falling back to standard search:', error);
+      }
+
+      // Fallback to standard search through all stored vectors
       for (const [entryId, entry] of this.memoryStore.entries()) {
         // Calculate cosine similarity
         const similarity = this.cosineSimilarity(queryVector, entry.inputVector);
@@ -505,6 +578,70 @@ export class VectorMemorySystem {
     const entriesSize = this.memoryStore.size * 0.01; // ~10KB per entry estimate
     const indicesSize = (this.sessionIndex.size + this.userIndex.size) * 0.001; // ~1KB per index entry
     return entriesSize + indicesSize;
+  }
+
+  @withPerformanceMonitoring('VectorMemory.optimize')
+  public async optimizeVectorIndex(): Promise<AIONResult<boolean>> {
+    try {
+      console.log('[VECTOR_MEMORY] Starting vector index optimization...');
+      
+      // Convert memory store to array for optimization
+      const allVectors = Array.from(this.memoryStore.values());
+      
+      if (allVectors.length > 0) {
+        // Run optimization
+        const optimizationResult = await this.vectorOptimizer.optimizeIndex(allVectors);
+        
+        if (optimizationResult.data) {
+          console.log(`[VECTOR_MEMORY] Index optimization completed - Performance gain: ${optimizationResult.data.performanceGain.toFixed(2)}%`);
+          console.log(`[VECTOR_MEMORY] Memory reduction: ${optimizationResult.data.memoryReduction.toFixed(2)}%`);
+        }
+        
+        // Trigger adaptive optimization based on usage patterns
+        const usagePatterns = this.generateUsagePatterns();
+        await this.vectorOptimizer.performAdaptiveOptimization(usagePatterns);
+      }
+      
+      return {
+        data: true,
+        performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 100 },
+        security: { encrypted: true, authenticated: true, authorized: true, auditTrail: `VECTOR_INDEX_OPTIMIZED_${Date.now()}` },
+      };
+      
+    } catch (error) {
+      const vectorError: AIONError = {
+        code: ERROR_CODES.VECTOR_STORE_ERROR,
+        message: `Failed to optimize vector index: ${error}`,
+        category: 'technical',
+        severity: 'medium',
+      };
+
+      return {
+        error: vectorError,
+        performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 100 },
+        security: { encrypted: false, authenticated: false, authorized: false, auditTrail: `VECTOR_OPTIMIZATION_FAILED_${Date.now()}` },
+      };
+    }
+  }
+
+  private generateUsagePatterns(): any[] {
+    // Generate usage patterns based on recent operations
+    const patterns: any[] = [];
+    const recentTime = Date.now() - (24 * 60 * 60 * 1000); // Last 24 hours
+    
+    for (const entry of this.memoryStore.values()) {
+      if (entry.timestamp.getTime() > recentTime) {
+        patterns.push({
+          type: 'search',
+          timestamp: entry.timestamp,
+          querySize: entry.inputVector.length,
+          memoryUsage: entry.inputVector.length * 4, // 4 bytes per float
+          latency: Math.random() * 2 + 0.5, // Simulated latency
+        });
+      }
+    }
+    
+    return patterns;
   }
 
   public async cleanup(): Promise<void> {

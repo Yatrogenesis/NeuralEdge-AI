@@ -64,6 +64,30 @@ export interface SyncConfiguration {
   redundancy: number; // number of providers to backup to
   maxFileSize: number; // bytes
   batchSize: number; // number of files per batch
+  conflictResolution: 'latest_wins' | 'manual' | 'merge' | 'keep_both';
+  maxRetries: number;
+  retryBackoffMs: number;
+}
+
+export interface ConflictInfo {
+  id: string;
+  localVersion: VectorMemoryEntry;
+  remoteVersions: Map<string, VectorMemoryEntry>; // provider -> version
+  conflictType: 'timestamp' | 'content' | 'both';
+  detectedAt: Date;
+  resolved: boolean;
+  resolution?: 'local' | 'remote' | 'merged' | 'both';
+}
+
+export interface SyncResult {
+  totalOperations: number;
+  successful: number;
+  failed: number;
+  conflicts: number;
+  conflictDetails: ConflictInfo[];
+  uploadedBytes: number;
+  downloadedBytes: number;
+  duration: number;
 }
 
 export class CloudSyncManager {
@@ -72,6 +96,7 @@ export class CloudSyncManager {
   private securityManager: SecurityManager;
   private adapters: Map<string, CloudStorageAdapter> = new Map();
   private syncOperations: Map<string, SyncOperation> = new Map();
+  private conflicts: Map<string, ConflictInfo> = new Map();
   private isInitialized = false;
   private syncConfiguration: SyncConfiguration;
   private syncInterval?: NodeJS.Timeout;
@@ -89,6 +114,9 @@ export class CloudSyncManager {
       redundancy: 2,
       maxFileSize: CLOUD.MAX_FILE_SIZE,
       batchSize: 10,
+      conflictResolution: 'latest_wins',
+      maxRetries: 3,
+      retryBackoffMs: 1000,
     };
   }
 
@@ -546,6 +574,432 @@ export class CloudSyncManager {
       this.syncInterval = undefined;
       console.log('[CLOUD_SYNC] Auto sync stopped');
     }
+  }
+
+  @withPerformanceMonitoring('CloudSync.performFullSync', PERFORMANCE.MAX_RESPONSE_TIME * 100)
+  public async performFullSync(): Promise<AIONResult<SyncResult>> {
+    try {
+      if (!this.isInitialized) {
+        throw new Error('Cloud sync manager not initialized');
+      }
+
+      console.log('[CLOUD_SYNC] Starting full synchronization...');
+      const startTime = Date.now();
+
+      const syncResult: SyncResult = {
+        totalOperations: 0,
+        successful: 0,
+        failed: 0,
+        conflicts: 0,
+        conflictDetails: [],
+        uploadedBytes: 0,
+        downloadedBytes: 0,
+        duration: 0,
+      };
+
+      // Phase 1: Detect conflicts by comparing local and remote versions
+      const conflictDetectionResult = await this.detectConflicts();
+      if (conflictDetectionResult.error) {
+        throw new Error(`Conflict detection failed: ${conflictDetectionResult.error.message}`);
+      }
+
+      // Phase 2: Resolve conflicts automatically based on configuration
+      const conflictResolutionResult = await this.resolveConflicts();
+      syncResult.conflicts = this.conflicts.size;
+      syncResult.conflictDetails = Array.from(this.conflicts.values());
+
+      // Phase 3: Perform bi-directional sync
+      const bidirectionalSyncResult = await this.performBidirectionalSync();
+      if (bidirectionalSyncResult.data) {
+        syncResult.totalOperations += bidirectionalSyncResult.data.totalOperations;
+        syncResult.successful += bidirectionalSyncResult.data.successful;
+        syncResult.failed += bidirectionalSyncResult.data.failed;
+        syncResult.uploadedBytes += bidirectionalSyncResult.data.uploadedBytes;
+        syncResult.downloadedBytes += bidirectionalSyncResult.data.downloadedBytes;
+      }
+
+      // Phase 4: Verify sync integrity
+      await this.verifySyncIntegrity();
+
+      syncResult.duration = Date.now() - startTime;
+      console.log(`[CLOUD_SYNC] Full sync completed in ${syncResult.duration}ms`);
+
+      return {
+        data: syncResult,
+        performance: { startTime: 0, endTime: 0, duration: syncResult.duration, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 100 },
+        security: { encrypted: true, authenticated: true, authorized: true, auditTrail: `FULL_SYNC_${Date.now()}` },
+      };
+
+    } catch (error) {
+      const cloudError: AIONError = {
+        code: ERROR_CODES.CLOUD_UNAVAILABLE,
+        message: `Full sync failed: ${error}`,
+        category: 'technical',
+        severity: 'high',
+      };
+
+      return {
+        error: cloudError,
+        performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 100 },
+        security: { encrypted: false, authenticated: false, authorized: false, auditTrail: `FULL_SYNC_FAILED_${Date.now()}` },
+      };
+    }
+  }
+
+  @withPerformanceMonitoring('CloudSync.detectConflicts')
+  private async detectConflicts(): Promise<AIONResult<ConflictInfo[]>> {
+    try {
+      console.log('[CLOUD_SYNC] Detecting conflicts across providers...');
+      const conflicts: ConflictInfo[] = [];
+
+      // Get all local memories that need to be checked
+      const localFiles = await this.getLocalMemoryFiles();
+
+      for (const localFile of localFiles) {
+        const remoteVersions = new Map<string, VectorMemoryEntry>();
+
+        // Check each provider for remote versions
+        for (const provider of this.getActiveProviders()) {
+          try {
+            const remoteMemory = await this.downloadVectorMemory(localFile.id, [provider]);
+            if (remoteMemory.data) {
+              remoteVersions.set(provider, remoteMemory.data);
+            }
+          } catch (error) {
+            console.warn(`[CLOUD_SYNC] Could not fetch remote version from ${provider}:`, error);
+          }
+        }
+
+        // Detect conflicts by comparing timestamps and content
+        if (remoteVersions.size > 0) {
+          const conflict = this.analyzeVersionConflicts(localFile, remoteVersions);
+          if (conflict) {
+            conflicts.push(conflict);
+            this.conflicts.set(conflict.id, conflict);
+          }
+        }
+      }
+
+      console.log(`[CLOUD_SYNC] Detected ${conflicts.length} conflicts`);
+
+      return {
+        data: conflicts,
+        performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 20 },
+        security: { encrypted: true, authenticated: true, authorized: true, auditTrail: `CONFLICTS_DETECTED_${Date.now()}` },
+      };
+
+    } catch (error) {
+      const cloudError: AIONError = {
+        code: ERROR_CODES.CLOUD_UNAVAILABLE,
+        message: `Conflict detection failed: ${error}`,
+        category: 'technical',
+        severity: 'medium',
+      };
+
+      return {
+        error: cloudError,
+        performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 20 },
+        security: { encrypted: false, authenticated: false, authorized: false, auditTrail: `CONFLICT_DETECTION_FAILED_${Date.now()}` },
+      };
+    }
+  }
+
+  @withPerformanceMonitoring('CloudSync.resolveConflicts')
+  private async resolveConflicts(): Promise<AIONResult<number>> {
+    try {
+      let resolvedCount = 0;
+
+      for (const [conflictId, conflict] of this.conflicts) {
+        if (conflict.resolved) continue;
+
+        console.log(`[CLOUD_SYNC] Resolving conflict: ${conflictId} (${conflict.conflictType})`);
+
+        let resolution: 'local' | 'remote' | 'merged' | 'both';
+
+        switch (this.syncConfiguration.conflictResolution) {
+          case 'latest_wins':
+            resolution = this.resolveByLatestTimestamp(conflict);
+            break;
+          case 'merge':
+            resolution = await this.resolveBySizeAndContent(conflict);
+            break;
+          case 'keep_both':
+            resolution = 'both';
+            break;
+          case 'manual':
+          default:
+            console.warn(`[CLOUD_SYNC] Manual conflict resolution required for: ${conflictId}`);
+            continue;
+        }
+
+        // Apply the resolution
+        await this.applyConflictResolution(conflict, resolution);
+        
+        conflict.resolved = true;
+        conflict.resolution = resolution;
+        resolvedCount++;
+
+        console.log(`[CLOUD_SYNC] Conflict resolved: ${conflictId} -> ${resolution}`);
+      }
+
+      console.log(`[CLOUD_SYNC] Resolved ${resolvedCount} conflicts automatically`);
+
+      return {
+        data: resolvedCount,
+        performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 30 },
+        security: { encrypted: true, authenticated: true, authorized: true, auditTrail: `CONFLICTS_RESOLVED_${Date.now()}` },
+      };
+
+    } catch (error) {
+      const cloudError: AIONError = {
+        code: ERROR_CODES.CLOUD_UNAVAILABLE,
+        message: `Conflict resolution failed: ${error}`,
+        category: 'technical',
+        severity: 'high',
+      };
+
+      return {
+        error: cloudError,
+        performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 30 },
+        security: { encrypted: false, authenticated: false, authorized: false, auditTrail: `CONFLICT_RESOLUTION_FAILED_${Date.now()}` },
+      };
+    }
+  }
+
+  @withPerformanceMonitoring('CloudSync.bidirectionalSync')
+  private async performBidirectionalSync(): Promise<AIONResult<SyncResult>> {
+    try {
+      console.log('[CLOUD_SYNC] Performing bidirectional synchronization...');
+
+      const syncResult: SyncResult = {
+        totalOperations: 0,
+        successful: 0,
+        failed: 0,
+        conflicts: 0,
+        conflictDetails: [],
+        uploadedBytes: 0,
+        downloadedBytes: 0,
+        duration: 0,
+      };
+
+      // Phase 1: Upload local changes to all providers
+      const uploadResult = await this.uploadPendingChanges();
+      if (uploadResult.data) {
+        syncResult.successful += uploadResult.data.successful;
+        syncResult.failed += uploadResult.data.failed;
+        syncResult.uploadedBytes += uploadResult.data.uploadedBytes;
+      }
+
+      // Phase 2: Download remote changes from all providers
+      const downloadResult = await this.downloadRemoteChanges();
+      if (downloadResult.data) {
+        syncResult.successful += downloadResult.data.successful;
+        syncResult.failed += downloadResult.data.failed;
+        syncResult.downloadedBytes += downloadResult.data.downloadedBytes;
+      }
+
+      syncResult.totalOperations = syncResult.successful + syncResult.failed;
+
+      console.log(`[CLOUD_SYNC] Bidirectional sync completed - ${syncResult.successful}/${syncResult.totalOperations} successful`);
+
+      return {
+        data: syncResult,
+        performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 50 },
+        security: { encrypted: true, authenticated: true, authorized: true, auditTrail: `BIDIRECTIONAL_SYNC_${Date.now()}` },
+      };
+
+    } catch (error) {
+      const cloudError: AIONError = {
+        code: ERROR_CODES.CLOUD_UNAVAILABLE,
+        message: `Bidirectional sync failed: ${error}`,
+        category: 'technical',
+        severity: 'high',
+      };
+
+      return {
+        error: cloudError,
+        performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 50 },
+        security: { encrypted: false, authenticated: false, authorized: false, auditTrail: `BIDIRECTIONAL_SYNC_FAILED_${Date.now()}` },
+      };
+    }
+  }
+
+  private analyzeVersionConflicts(
+    localVersion: VectorMemoryEntry,
+    remoteVersions: Map<string, VectorMemoryEntry>
+  ): ConflictInfo | null {
+    const conflicts: ConflictInfo[] = [];
+
+    for (const [provider, remoteVersion] of remoteVersions) {
+      let conflictType: 'timestamp' | 'content' | 'both' | null = null;
+
+      // Check timestamp conflicts
+      const timeDiff = Math.abs(localVersion.timestamp.getTime() - remoteVersion.timestamp.getTime());
+      if (timeDiff > 1000) { // More than 1 second difference
+        conflictType = 'timestamp';
+      }
+
+      // Check content conflicts
+      const localHash = this.hashVectorEntry(localVersion);
+      const remoteHash = this.hashVectorEntry(remoteVersion);
+      if (localHash !== remoteHash) {
+        conflictType = conflictType === 'timestamp' ? 'both' : 'content';
+      }
+
+      if (conflictType) {
+        return {
+          id: localVersion.id,
+          localVersion,
+          remoteVersions,
+          conflictType,
+          detectedAt: new Date(),
+          resolved: false,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  private resolveByLatestTimestamp(conflict: ConflictInfo): 'local' | 'remote' {
+    let latestTimestamp = conflict.localVersion.timestamp.getTime();
+    let isLocalLatest = true;
+
+    for (const remoteVersion of conflict.remoteVersions.values()) {
+      if (remoteVersion.timestamp.getTime() > latestTimestamp) {
+        latestTimestamp = remoteVersion.timestamp.getTime();
+        isLocalLatest = false;
+      }
+    }
+
+    return isLocalLatest ? 'local' : 'remote';
+  }
+
+  private async resolveBySizeAndContent(conflict: ConflictInfo): Promise<'local' | 'remote' | 'merged'> {
+    // Simple content-based resolution - in a real implementation, this would use more sophisticated merging
+    const localSize = JSON.stringify(conflict.localVersion).length;
+    let largestRemoteSize = 0;
+
+    for (const remoteVersion of conflict.remoteVersions.values()) {
+      const remoteSize = JSON.stringify(remoteVersion).length;
+      if (remoteSize > largestRemoteSize) {
+        largestRemoteSize = remoteSize;
+      }
+    }
+
+    // Choose the version with more content (likely more complete)
+    return localSize >= largestRemoteSize ? 'local' : 'remote';
+  }
+
+  private async applyConflictResolution(conflict: ConflictInfo, resolution: 'local' | 'remote' | 'merged' | 'both'): Promise<void> {
+    console.log(`[CLOUD_SYNC] Applying resolution '${resolution}' for conflict: ${conflict.id}`);
+
+    switch (resolution) {
+      case 'local':
+        // Upload local version to all providers
+        await this.uploadVectorMemory(conflict.localVersion);
+        break;
+      case 'remote':
+        // Use the first remote version (in real implementation, choose the best one)
+        const remoteVersion = Array.from(conflict.remoteVersions.values())[0];
+        await this.saveLocalVersion(remoteVersion);
+        break;
+      case 'both':
+        // Keep both versions with different IDs
+        await this.createDuplicateVersion(conflict);
+        break;
+      case 'merged':
+        // Create a merged version (simplified implementation)
+        const mergedVersion = await this.createMergedVersion(conflict);
+        await this.uploadVectorMemory(mergedVersion);
+        break;
+    }
+  }
+
+  private hashVectorEntry(entry: VectorMemoryEntry): string {
+    // Simple hash for content comparison
+    const content = `${entry.userInput}${entry.aiResponse}${entry.timestamp.getTime()}`;
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      hash = ((hash << 5) - hash + content.charCodeAt(i)) & 0xffffffff;
+    }
+    return hash.toString(36);
+  }
+
+  private async getLocalMemoryFiles(): Promise<VectorMemoryEntry[]> {
+    // In real implementation, get from local storage
+    // For now, return empty array
+    return [];
+  }
+
+  private async uploadPendingChanges(): Promise<AIONResult<SyncResult>> {
+    // Simplified implementation - in reality, would track pending changes
+    return {
+      data: {
+        totalOperations: 0,
+        successful: 0,
+        failed: 0,
+        conflicts: 0,
+        conflictDetails: [],
+        uploadedBytes: 0,
+        downloadedBytes: 0,
+        duration: 0,
+      },
+      performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 20 },
+      security: { encrypted: true, authenticated: true, authorized: true, auditTrail: `UPLOAD_PENDING_${Date.now()}` },
+    };
+  }
+
+  private async downloadRemoteChanges(): Promise<AIONResult<SyncResult>> {
+    // Simplified implementation - in reality, would download changes since last sync
+    return {
+      data: {
+        totalOperations: 0,
+        successful: 0,
+        failed: 0,
+        conflicts: 0,
+        conflictDetails: [],
+        uploadedBytes: 0,
+        downloadedBytes: 0,
+        duration: 0,
+      },
+      performance: { startTime: 0, endTime: 0, duration: 0, threshold: PERFORMANCE.MAX_RESPONSE_TIME * 20 },
+      security: { encrypted: true, authenticated: true, authorized: true, auditTrail: `DOWNLOAD_CHANGES_${Date.now()}` },
+    };
+  }
+
+  private async verifySyncIntegrity(): Promise<void> {
+    console.log('[CLOUD_SYNC] Verifying sync integrity...');
+    // In real implementation, would verify checksums and consistency across providers
+  }
+
+  private async saveLocalVersion(version: VectorMemoryEntry): Promise<void> {
+    console.log(`[CLOUD_SYNC] Saving local version: ${version.id}`);
+    // In real implementation, save to local storage
+  }
+
+  private async createDuplicateVersion(conflict: ConflictInfo): Promise<void> {
+    console.log(`[CLOUD_SYNC] Creating duplicate versions for: ${conflict.id}`);
+    // In real implementation, create versions with suffixed IDs
+  }
+
+  private async createMergedVersion(conflict: ConflictInfo): Promise<VectorMemoryEntry> {
+    console.log(`[CLOUD_SYNC] Creating merged version for: ${conflict.id}`);
+    // Simplified merge - in reality, would intelligently merge content
+    return conflict.localVersion; // Return local as merged for now
+  }
+
+  public getConflicts(): ConflictInfo[] {
+    return Array.from(this.conflicts.values());
+  }
+
+  public async clearResolvedConflicts(): Promise<void> {
+    for (const [id, conflict] of this.conflicts) {
+      if (conflict.resolved) {
+        this.conflicts.delete(id);
+      }
+    }
+    console.log('[CLOUD_SYNC] Cleared resolved conflicts');
   }
 
   public async dispose(): Promise<void> {
