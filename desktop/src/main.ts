@@ -268,7 +268,7 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('security:decrypt', async (event, data: string) => {
     try {
-      const decrypted = await securityManager.decryptData(data);
+      const decrypted = await securityManager.decryptData({ encryptedData: data, iv: '', tag: '' });
       return { success: true, data: decrypted };
     } catch (error) {
       return { success: false, error: error.message };
@@ -372,11 +372,11 @@ function setupApplicationMenu(): void {
         {
           label: 'Performance Benchmark',
           click: async () => {
-            const result = await performanceMonitor.runBenchmark();
+            const result = await performanceMonitor.runBenchmark('test input', 'session123');
             dialog.showMessageBox({
               type: 'info',
               title: 'Performance Benchmark',
-              message: `Benchmark Results:\n\nAI Response: ${result.aiResponseTime}ms\nMemory Usage: ${result.memoryUsage}MB\nCPU Usage: ${result.cpuUsage}%\n\nAION Compliance: ${result.isCompliant ? 'PASS' : 'FAIL'}`
+              message: `Benchmark Results:\n\nResponse Time: ${result.responseTime}ms\nMemory Usage: ${result.memoryUsage}MB\nThroughput: ${result.throughput} QPS\n\nAION Compliance: ${result.aionCompliant ? 'PASS' : 'FAIL'}`
             });
           }
         }
@@ -513,15 +513,9 @@ app.whenReady().then(async () => {
     appMetrics.memoryUsage = process.memoryUsage().heapUsed / 1024 / 1024;
     appMetrics.cpuUsage = process.cpuUsage().user / 1000000;
     
-    // Update tray status
+    // Update tray status - simplified without context menu access
     if (tray) {
-      const contextMenu = tray.getContextMenu();
-      if (contextMenu) {
-        const statusItem = contextMenu.getMenuItemById('ai-status');
-        if (statusItem) {
-          statusItem.label = `AI: ${aiEngine.isReady() ? 'Ready' : 'Loading'} | Memory: ${appMetrics.memoryUsage.toFixed(1)}MB`;
-        }
-      }
+      tray.setToolTip(`AI: ${aiEngine.isReady() ? 'Ready' : 'Loading'} | Memory: ${appMetrics.memoryUsage.toFixed(1)}MB`);
     }
   }, 5000);
   

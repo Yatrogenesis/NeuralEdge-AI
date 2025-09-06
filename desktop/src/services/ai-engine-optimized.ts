@@ -512,7 +512,7 @@ export class OptimizedAIEngine extends EventEmitter {
           memoryUsage: process.memoryUsage().heapUsed,
           cpuUsage: process.cpuUsage().user,
           cacheHit: false,
-          aionCompliant: loadTime <= AION_CONSTANTS.MAX_MODEL_LOAD_TIME
+          aionCompliant: loadTime <= AION_CONSTANTS.MAX_RESPONSE_TIME
         }
       };
     } catch (error) {

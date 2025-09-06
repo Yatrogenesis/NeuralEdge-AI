@@ -223,7 +223,7 @@ class EnterprisePerformanceBenchmark {
 
   // AION Protocol Compliance Test - Ultra-Fast Responses
   async testUltraFastAIONCompliance() {
-    console.log('🚀 Testing Ultra-Fast AION Compliance (<0.5ms target)...');
+    console.log(' Testing Ultra-Fast AION Compliance (<0.5ms target)...');
     
     const ultraFastQueries = [
       'hello', 'hi', 'yes', 'no', 'help', 'thanks', 'ok', 'stop', 'start', 'status'
@@ -268,9 +268,9 @@ class EnterprisePerformanceBenchmark {
       cacheHitRate: results.operations.filter(op => op.fromCache).length / results.operations.length
     };
 
-    console.log(`   ✅ Average Response Time: ${results.metrics.averageResponseTime.toFixed(4)}ms`);
-    console.log(`   ✅ Ultra-Fast Rate: ${(results.metrics.ultraFastRate * 100).toFixed(1)}%`);
-    console.log(`   ✅ AION Compliance: ${(results.metrics.aionComplianceRate * 100).toFixed(1)}%`);
+    console.log(`    Average Response Time: ${results.metrics.averageResponseTime.toFixed(4)}ms`);
+    console.log(`    Ultra-Fast Rate: ${(results.metrics.ultraFastRate * 100).toFixed(1)}%`);
+    console.log(`    AION Compliance: ${(results.metrics.aionComplianceRate * 100).toFixed(1)}%`);
 
     this.results.benchmarks.push(results);
     return results;
@@ -278,7 +278,7 @@ class EnterprisePerformanceBenchmark {
 
   // Enterprise Load Testing
   async testEnterpriseLoad() {
-    console.log('🏢 Testing Enterprise Load Performance...');
+    console.log(' Testing Enterprise Load Performance...');
     
     const concurrentUsers = [1, 5, 10, 25, 50, 100];
     const loadResults = {
@@ -354,7 +354,7 @@ class EnterprisePerformanceBenchmark {
 
   // Memory Efficiency Test
   async testEnterpriseMemoryEfficiency() {
-    console.log('🧠 Testing Enterprise Memory Efficiency...');
+    console.log(' Testing Enterprise Memory Efficiency...');
     
     const memoryTest = {
       testName: 'Enterprise Memory Efficiency',
@@ -409,9 +409,9 @@ class EnterprisePerformanceBenchmark {
       totalQueriesProcessed: memoryTest.operations.reduce((sum, op) => sum + op.queriesProcessed, 0)
     };
 
-    console.log(`   ✅ Total Memory Increase: ${memoryTest.metrics.memoryEfficiencyMB.toFixed(2)}MB`);
-    console.log(`   ✅ Queries Processed: ${memoryTest.metrics.totalQueriesProcessed}`);
-    console.log(`   ✅ Memory Efficiency: ${memoryTest.metrics.aionMemoryCompliant ? 'PASS' : 'FAIL'}`);
+    console.log(`    Total Memory Increase: ${memoryTest.metrics.memoryEfficiencyMB.toFixed(2)}MB`);
+    console.log(`    Queries Processed: ${memoryTest.metrics.totalQueriesProcessed}`);
+    console.log(`    Memory Efficiency: ${memoryTest.metrics.aionMemoryCompliant ? 'PASS' : 'FAIL'}`);
 
     this.results.benchmarks.push(memoryTest);
     return memoryTest;
@@ -419,7 +419,7 @@ class EnterprisePerformanceBenchmark {
 
   // Enterprise Reliability Test
   async testEnterpriseReliability() {
-    console.log('🛡️  Testing Enterprise Reliability (99.999% target)...');
+    console.log('️  Testing Enterprise Reliability (99.999% target)...');
     
     const reliabilityTest = {
       testName: 'Enterprise Reliability Test',
@@ -479,10 +479,10 @@ class EnterprisePerformanceBenchmark {
       aionAvailabilityCompliant: finalReliability >= AION_CONSTANTS.MIN_AVAILABILITY
     };
 
-    console.log(`   ✅ Reliability: ${(finalReliability * 100).toFixed(5)}%`);
-    console.log(`   ✅ Failure Rate: ${(failureRate * 100).toFixed(5)}%`);
-    console.log(`   ✅ AION Reliability: ${reliabilityTest.metrics.aionReliabilityCompliant ? 'PASS' : 'FAIL'}`);
-    console.log(`   ✅ AION Availability: ${reliabilityTest.metrics.aionAvailabilityCompliant ? 'PASS' : 'FAIL'}`);
+    console.log(`    Reliability: ${(finalReliability * 100).toFixed(5)}%`);
+    console.log(`    Failure Rate: ${(failureRate * 100).toFixed(5)}%`);
+    console.log(`    AION Reliability: ${reliabilityTest.metrics.aionReliabilityCompliant ? 'PASS' : 'FAIL'}`);
+    console.log(`    AION Availability: ${reliabilityTest.metrics.aionAvailabilityCompliant ? 'PASS' : 'FAIL'}`);
 
     this.results.benchmarks.push(reliabilityTest);
     return reliabilityTest;
@@ -495,10 +495,10 @@ class EnterprisePerformanceBenchmark {
   }
 
   generateEnterpriseReport() {
-    console.log('\n🏆 === NEURALEDGE AI ENTERPRISE PERFORMANCE REPORT ===');
-    console.log(`📊 Report Generated: ${this.results.timestamp}`);
-    console.log(`🔧 Version: ${this.results.version}`);
-    console.log(`📈 Total Benchmarks: ${this.results.benchmarks.length}`);
+    console.log('\n === NEURALEDGE AI ENTERPRISE PERFORMANCE REPORT ===');
+    console.log(` Report Generated: ${this.results.timestamp}`);
+    console.log(` Version: ${this.results.version}`);
+    console.log(` Total Benchmarks: ${this.results.benchmarks.length}`);
 
     // Calculate overall AION compliance
     let totalAIONTests = 0;
@@ -507,13 +507,13 @@ class EnterprisePerformanceBenchmark {
     let testCount = 0;
 
     this.results.benchmarks.forEach(benchmark => {
-      console.log(`\n🧪 --- ${benchmark.testName} ---`);
+      console.log(`\n --- ${benchmark.testName} ---`);
       
       switch (benchmark.testName) {
         case 'Ultra-Fast AION Compliance':
-          console.log(`   ⚡ Average Response: ${benchmark.metrics.averageResponseTime.toFixed(4)}ms`);
-          console.log(`   🎯 Ultra-Fast Rate: ${(benchmark.metrics.ultraFastRate * 100).toFixed(1)}%`);
-          console.log(`   ✅ AION Compliance: ${(benchmark.metrics.aionComplianceRate * 100).toFixed(1)}%`);
+          console.log(`    Average Response: ${benchmark.metrics.averageResponseTime.toFixed(4)}ms`);
+          console.log(`    Ultra-Fast Rate: ${(benchmark.metrics.ultraFastRate * 100).toFixed(1)}%`);
+          console.log(`    AION Compliance: ${(benchmark.metrics.aionComplianceRate * 100).toFixed(1)}%`);
           totalAIONTests++;
           if (benchmark.metrics.aionComplianceRate >= 0.95) passedAIONTests++;
           overallResponseTime += benchmark.metrics.averageResponseTime;
@@ -522,26 +522,26 @@ class EnterprisePerformanceBenchmark {
           
         case 'Enterprise Load Testing':
           const maxThroughput = benchmark.metrics.maxThroughput;
-          console.log(`   📊 Max Throughput: ${maxThroughput.toFixed(1)} QPS`);
-          console.log(`   📈 Scalability: ${benchmark.metrics.scalabilityFactor.toFixed(2)}x`);
-          console.log(`   ✅ Load Compliance: ${(benchmark.metrics.avgComplianceUnderLoad * 100).toFixed(1)}%`);
+          console.log(`    Max Throughput: ${maxThroughput.toFixed(1)} QPS`);
+          console.log(`    Scalability: ${benchmark.metrics.scalabilityFactor.toFixed(2)}x`);
+          console.log(`    Load Compliance: ${(benchmark.metrics.avgComplianceUnderLoad * 100).toFixed(1)}%`);
           totalAIONTests++;
           if (benchmark.metrics.avgComplianceUnderLoad >= 0.90) passedAIONTests++;
           break;
           
         case 'Enterprise Memory Efficiency':
-          console.log(`   🧠 Memory Usage: ${benchmark.metrics.memoryEfficiencyMB.toFixed(2)}MB`);
-          console.log(`   📊 Queries Processed: ${benchmark.metrics.totalQueriesProcessed.toLocaleString()}`);
-          console.log(`   ✅ Memory Compliance: ${benchmark.metrics.aionMemoryCompliant ? 'PASS' : 'FAIL'}`);
+          console.log(`    Memory Usage: ${benchmark.metrics.memoryEfficiencyMB.toFixed(2)}MB`);
+          console.log(`    Queries Processed: ${benchmark.metrics.totalQueriesProcessed.toLocaleString()}`);
+          console.log(`    Memory Compliance: ${benchmark.metrics.aionMemoryCompliant ? 'PASS' : 'FAIL'}`);
           totalAIONTests++;
           if (benchmark.metrics.aionMemoryCompliant) passedAIONTests++;
           break;
           
         case 'Enterprise Reliability Test':
-          console.log(`   🛡️  Reliability: ${(benchmark.metrics.reliability * 100).toFixed(5)}%`);
-          console.log(`   💥 Failure Rate: ${(benchmark.metrics.failureRate * 100).toFixed(5)}%`);
-          console.log(`   ✅ AION Reliability: ${benchmark.metrics.aionReliabilityCompliant ? 'PASS' : 'FAIL'}`);
-          console.log(`   ✅ AION Availability: ${benchmark.metrics.aionAvailabilityCompliant ? 'PASS' : 'FAIL'}`);
+          console.log(`   ️  Reliability: ${(benchmark.metrics.reliability * 100).toFixed(5)}%`);
+          console.log(`    Failure Rate: ${(benchmark.metrics.failureRate * 100).toFixed(5)}%`);
+          console.log(`    AION Reliability: ${benchmark.metrics.aionReliabilityCompliant ? 'PASS' : 'FAIL'}`);
+          console.log(`    AION Availability: ${benchmark.metrics.aionAvailabilityCompliant ? 'PASS' : 'FAIL'}`);
           totalAIONTests += 2;
           if (benchmark.metrics.aionReliabilityCompliant) passedAIONTests++;
           if (benchmark.metrics.aionAvailabilityCompliant) passedAIONTests++;
@@ -570,11 +570,11 @@ class EnterprisePerformanceBenchmark {
       readyForProduction: overallAIONCompliance >= 0.95 && avgResponseTime <= 1.0
     };
 
-    console.log('\n🏆 === ENTERPRISE SUMMARY ===');
-    console.log(`🎯 AION Compliance: ${passedAIONTests}/${totalAIONTests} (${(overallAIONCompliance * 100).toFixed(1)}%)`);
-    console.log(`⚡ Average Response Time: ${avgResponseTime.toFixed(3)}ms`);
-    console.log(`🏅 Enterprise Grade: ${enterpriseGrade}`);
-    console.log(`🚀 Production Ready: ${this.results.summary.readyForProduction ? 'YES' : 'NEEDS OPTIMIZATION'}`);
+    console.log('\n === ENTERPRISE SUMMARY ===');
+    console.log(` AION Compliance: ${passedAIONTests}/${totalAIONTests} (${(overallAIONCompliance * 100).toFixed(1)}%)`);
+    console.log(` Average Response Time: ${avgResponseTime.toFixed(3)}ms`);
+    console.log(` Enterprise Grade: ${enterpriseGrade}`);
+    console.log(` Production Ready: ${this.results.summary.readyForProduction ? 'YES' : 'NEEDS OPTIMIZATION'}`);
 
     // AION Protocol specific summary
     this.results.aionCompliance = {
@@ -595,13 +595,13 @@ class EnterprisePerformanceBenchmark {
     // Save comprehensive report
     const reportPath = path.join(__dirname, 'enterprise-performance-report.json');
     fs.writeFileSync(reportPath, JSON.stringify(this.results, null, 2));
-    console.log(`\n📋 Detailed enterprise report saved: ${reportPath}`);
+    console.log(`\n Detailed enterprise report saved: ${reportPath}`);
 
     return this.results;
   }
 
   async runAllEnterpriseBenchmarks() {
-    console.log('🚀 Starting NeuralEdge AI Enterprise Performance Benchmarks...\n');
+    console.log(' Starting NeuralEdge AI Enterprise Performance Benchmarks...\n');
     
     const startTime = Date.now();
     
@@ -623,13 +623,13 @@ if (require.main === module) {
   
   benchmark.runAllEnterpriseBenchmarks()
     .then(results => {
-      console.log('\n🎉 ✅ Enterprise benchmarks completed successfully!');
-      console.log(`🏆 Final Grade: ${results.summary.enterpriseGrade}`);
-      console.log(`🚀 Production Status: ${results.enterpriseMetrics.enterpriseReadiness}`);
+      console.log('\n  Enterprise benchmarks completed successfully!');
+      console.log(` Final Grade: ${results.summary.enterpriseGrade}`);
+      console.log(` Production Status: ${results.enterpriseMetrics.enterpriseReadiness}`);
       process.exit(0);
     })
     .catch(error => {
-      console.error('\n❌ Enterprise benchmark failed:', error);
+      console.error('\n Enterprise benchmark failed:', error);
       process.exit(1);
     });
 }

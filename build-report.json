@@ -1,0 +1,9 @@
+{
+  "timestamp": "2025-09-06T04:52:24.939Z",
+  "builds": [],
+  "success": false,
+  "errors": [
+    "Desktop build failed: Command failed: npx electron-builder --win",
+    "Command failed: npx electron-builder --win"
+  ]
+}

@@ -157,18 +157,18 @@ export class PerformanceMonitor {
   }
 
   private calculateQuality(): 'excellent' | 'good' | 'fair' | 'poor' {
-    const { cpu, memory, responseTime } = this.metrics;
+    const { cpuUsage, memoryUsage, responseTime } = this.metrics;
     
-    if (cpu <= PERFORMANCE_THRESHOLDS.EXCELLENT.cpu &&
-        memory <= PERFORMANCE_THRESHOLDS.EXCELLENT.memory &&
+    if (cpuUsage <= PERFORMANCE_THRESHOLDS.EXCELLENT.cpu &&
+        memoryUsage <= PERFORMANCE_THRESHOLDS.EXCELLENT.memory &&
         responseTime <= PERFORMANCE_THRESHOLDS.EXCELLENT.responseTime) {
       return 'excellent';
-    } else if (cpu <= PERFORMANCE_THRESHOLDS.GOOD.cpu &&
-               memory <= PERFORMANCE_THRESHOLDS.GOOD.memory &&
+    } else if (cpuUsage <= PERFORMANCE_THRESHOLDS.GOOD.cpu &&
+               memoryUsage <= PERFORMANCE_THRESHOLDS.GOOD.memory &&
                responseTime <= PERFORMANCE_THRESHOLDS.GOOD.responseTime) {
       return 'good';
-    } else if (cpu <= PERFORMANCE_THRESHOLDS.FAIR.cpu &&
-               memory <= PERFORMANCE_THRESHOLDS.FAIR.memory &&
+    } else if (cpuUsage <= PERFORMANCE_THRESHOLDS.FAIR.cpu &&
+               memoryUsage <= PERFORMANCE_THRESHOLDS.FAIR.memory &&
                responseTime <= PERFORMANCE_THRESHOLDS.FAIR.responseTime) {
       return 'fair';
     } else {

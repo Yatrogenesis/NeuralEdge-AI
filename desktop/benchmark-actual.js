@@ -475,11 +475,11 @@ if (require.main === module) {
   
   benchmark.runAllBenchmarks()
     .then(results => {
-      console.log('\n✅ Benchmarks completed successfully!');
+      console.log('\n Benchmarks completed successfully!');
       process.exit(0);
     })
     .catch(error => {
-      console.error('\n❌ Benchmark failed:', error);
+      console.error('\n Benchmark failed:', error);
       process.exit(1);
     });
 }

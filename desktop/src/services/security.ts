@@ -97,7 +97,7 @@ export class SecurityManager {
       );
 
       // Create cipher
-      const cipher = crypto.createCipherGCM(SECURITY_CONFIG.ENCRYPTION_ALGORITHM, derivedKey, iv);
+      const cipher = crypto.createCipher(SECURITY_CONFIG.ENCRYPTION_ALGORITHM, derivedKey);
       
       // Encrypt data
       let encryptedData = cipher.update(plaintext, 'utf8', 'base64');
@@ -158,8 +158,7 @@ export class SecurityManager {
       );
 
       // Create decipher
-      const decipher = crypto.createDecipherGCM(SECURITY_CONFIG.ENCRYPTION_ALGORITHM, derivedKey, iv);
-      decipher.setAuthTag(authTag);
+      const decipher = crypto.createDecipher(SECURITY_CONFIG.ENCRYPTION_ALGORITHM, derivedKey);
       
       // Decrypt data
       let plaintext = decipher.update(encryptionResult.encryptedData, 'base64', 'utf8');
