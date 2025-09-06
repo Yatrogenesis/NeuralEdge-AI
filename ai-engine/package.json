@@ -1,0 +1,35 @@
+{
+  "name": "@neuraledge/ai-engine",
+  "version": "1.0.0",
+  "description": "NeuralEdge AI Engine - Local AI Inference Engine",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "jest",
+    "benchmark": "node benchmarks/performance.js",
+    "build": "tsc",
+    "model:download": "node scripts/download-models.js",
+    "model:optimize": "node scripts/optimize-models.js"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.15.0",
+    "@tensorflow/tfjs-node": "^4.15.0",
+    "onnxruntime-node": "^1.16.3",
+    "sharp": "^0.33.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  },
+  "keywords": [
+    "ai",
+    "tensorflow",
+    "onnx",
+    "inference",
+    "neural-networks"
+  ],
+  "author": "NeuralEdge AI Team",
+  "license": "MIT"
+}
