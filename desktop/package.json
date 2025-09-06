@@ -1,0 +1,79 @@
+{
+  "name": "@neuraledge/desktop",
+  "version": "1.0.0",
+  "description": "NeuralEdge AI Desktop Companion - Enterprise AI Platform",
+  "main": "dist/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "tsc && electron-builder",
+    "build:win": "tsc && electron-builder --win",
+    "build:mac": "tsc && electron-builder --mac",
+    "build:linux": "tsc && electron-builder --linux",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "benchmark": "node dist/benchmarks/performance.js",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit",
+    "security-audit": "npm audit && snyk test",
+    "clean": "rimraf dist"
+  },
+  "author": "NeuralEdge AI Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/electron": "^1.6.10",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "rimraf": "^5.0.5",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@electron/remote": "^2.1.2",
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.1.7",
+    "ws": "^8.16.0"
+  },
+  "build": {
+    "appId": "com.neuraledge.ai.desktop",
+    "productName": "NeuralEdge AI",
+    "directories": {
+      "output": "dist/installers"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
+      "category": "Productivity"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
